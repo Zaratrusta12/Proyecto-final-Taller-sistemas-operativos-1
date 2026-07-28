@@ -1,88 +1,91 @@
-# Matriz de servicios — Laboratorio Mabe
+# Matriz de servicios — Laboratorio Mabe (4 sucursales)
 
 ## Distribución por servidor
 
-### SERVER1 — SRV-DC01 (`192.168.10.10`)
+### SERVER1 — SRV-DC01 (4 NICs, router inter-VLAN)
 
-| Servicio | Detalle                                        | Prueba de aceptación                                 |
-| -------- | ---------------------------------------------- | ---------------------------------------------------- |
-| AD DS    | Dominio `mabe.tso1`                            | Login de usuario de dominio en cliente               |
-| DNS      | Zona primaria `mabe.tso1`                      | `nslookup srv-dc01.mabe.tso1`                        |
-| DHCP     | Scope + **1 exclusión** `.1-.50`               | `ipconfig /all` en cliente muestra DHCP y DNS del DC |
-| UO       | Mín. 3: Recepción, Laboratorio, Administración | Visible en ADUC                                      |
-| Grupos   | ≥ 3 por UO                                     | Visible en ADUC                                      |
-| Usuarios | ≥ 5 por grupo                                  | Conteos / script                                     |
-| GPO      | Mín. 15 con settings reales                    | `gpresult /r` en cliente                             |
-| RDP      | Solo administradores                           | `mstsc` hacia DC                                     |
-| Backup   | Windows Server Backup                          | Job Completed                                        |
-| Hyper-V* | Nested o en APP01                              | 1 VM creada                                          |
+| IP por sucursal | Servicio | Detalle |
+|-----------------|----------|---------|
+| `.10` en cada subred | AD DS | Dominio `mabe.tso1`, 4 Sites |
+| `.10` en cada subred | DNS | Zona `mabe.tso1`, registros A de ambos servers |
+| `.10` en cada subred | DHCP | 4 scopes (uno por sucursal), cada uno con exclusión `.1-.50` |
+| `.10` en cada subred | RRAS | LAN routing entre las 4 subredes |
+| `.10` en cada subred | GPO | 15 GPO (algunas enlazadas por Sitio) |
+| `.10` en cada subred | RDP | Solo administradores |
+| `.10` en cada subred | Backup | Windows Server Backup |
+| `.10` en cada subred | Hyper-V* | Nested o en APP01 |
 
-\*Hyper-V puede instalarse en DC01 o APP01 según recursos y nested VT-x.
+\*Hyper-V puede ir en DC01 o APP01 según recursos y nested VT-x.
 
-### SERVER2 — SRV-APP01 (`192.168.10.20`)
+### SERVER2 — SRV-APP01 (1 NIC, red central)
 
-| Servicio  | Detalle                                     | Prueba de aceptación            |
-| --------- | ------------------------------------------- | ------------------------------- |
-| IIS       | Sitio Mabe, **5 páginas** HTML              | Navegación desde cliente        |
-| Archivos  | Shares por área + NTFS por grupos           | Acceso OK / denegado cruzado    |
-| Cuotas    | FSRM distintas por grupo/carpeta            | Consola FSRM + prueba de límite |
-| Impresión | **1 impresora compartida por UO** (3 total) | Usuario ve su impresora         |
-| Correo    | hMailServer dominio `mabe.tso1`             | Envío/recepción interna         |
-| RDP       | Solo administradores                        | Conexión admin                  |
+| IP | Servicio | Detalle | Prueba de aceptación |
+|----|----------|---------|----------------------|
+| `192.168.10.20` | IIS | Sitio Mabe, 5 páginas HTML | Navegación desde cualquier sucursal |
+| `192.168.10.20` | Archivos | Shares por área + NTFS por grupos | Acceso OK / denegado cruzado |
+| `192.168.10.20` | Cuotas | FSRM distintas por grupo/carpeta | Consola FSRM |
+| `192.168.10.20` | Impresión | 1 impresora compartida por UO | Usuario ve su impresora |
+| `192.168.10.20` | Correo | hMailServer dominio `mabe.tso1` | Envío/recepción interna |
+| `192.168.10.20` | RDP | Solo administradores | Conexión admin desde cualquier sucursal |
 
-### ESTACIÓN — PC-REC01
+> APP01 es single-homed (1 NIC). Las sucursales llegan a APP01 vía routing del DC (RRAS).
 
-| Uso        | Detalle                                                        |
-| ---------- | -------------------------------------------------------------- |
-| Validación | DHCP, dominio, GPO, web, shares, impresoras, correo, RDP admin |
+### Estaciones de trabajo (4, una por sucursal)
+
+| VM | Sucursal | Red interna | Validación |
+|----|----------|-------------|------------|
+| PC-REC01 | Central | intnet-mabe-central | DHCP, dominio, GPO, web, shares, impresoras, correo, RDP admin |
+| PC-NORTE01 | Norte | intnet-mabe-norte | DHCP, dominio, GPO, web (vía routing), shares, impresoras |
+| PC-ESTE01 | Este | intnet-mabe-este | Idem Norte |
+| PC-SUR01 | Sur | intnet-mabe-sur | Idem Norte |
+
+> Para demos: encender DC + APP01 + 1 cliente a la vez.
 
 ## Sitio web (5 páginas)
 
-| Archivo          | Contenido                            |
-| ---------------- | ------------------------------------ |
-| `index.html`     | Inicio / bienvenida Laboratorio Mabe |
+| Archivo | Contenido |
+|---------|-----------|
+| `index.html` | Inicio / bienvenida Laboratorio Mabe |
 | `servicios.html` | Análisis y servicios del laboratorio |
-| `horarios.html`  | Horarios de atención en Santa Cruz   |
-| `contacto.html`  | Teléfono, correo, dirección          |
-| `nosotros.html`  | Misión, visión, calidad              |
+| `horarios.html` | Horarios de atención (4 sucursales) |
+| `contacto.html` | Teléfono, correo, dirección por sucursal |
+| `nosotros.html` | Misión, visión, calidad |
 
-Ruta sugerida en servidor: `C:\inetpub\wwwroot\mabe\`  
-URL de prueba: `http://srv-app01.mabe.tso1` o `http://192.168.10.20`
+Ruta en servidor: `C:\inetpub\wwwroot\mabe\`  
+URL: `http://srv-app01.mabe.tso1` o `http://192.168.10.20`
 
 ## Carpetas compartidas y permisos (esquema)
 
 ```
-D:\DatosMabe\   (o C:\DatosMabe\ si no hay segundo disco)
+D:\DatosMabe\
 ├── Recepcion\        → G_Rec_*  Modify | Administrators Full
 ├── Laboratorio\      → G_Lab_*  Modify | Administrators Full
 ├── Administracion\   → G_Adm_*  Modify | Administrators Full
 └── Publico\          → Usuarios autenticados Read
 ```
 
-Cuotas ejemplo (FSRM):
+Cuotas FSRM:
+- Recepcion: 2 GB
+- Laboratorio: 5 GB
+- Administracion: 3 GB
 
-| Carpeta        | Cuota | Grupo objetivo     |
-| -------------- | ----- | ------------------ |
-| Recepcion      | 2 GB  | G_Rec_Usuarios     |
-| Laboratorio    | 5 GB  | G_Lab_Analistas    |
-| Administracion | 3 GB  | G_Adm_Contabilidad |
+## Impresoras (1 por UO/sucursal)
 
-## Impresoras
-
-| Nombre cola        | UO / GPO          | Notas                                    |
-| ------------------ | ----------------- | ---------------------------------------- |
-| IMP-Recepcion      | UO_Recepcion      | Driver genérico / Microsoft Print to PDF |
-| IMP-Laboratorio    | UO_Laboratorio    | Idem                                     |
-| IMP-Administracion | UO_Administracion | Idem                                     |
+| Nombre cola | UO / GPO | Notas |
+|-------------|----------|-------|
+| IMP-Central | UO_SC_Central | Driver genérico / Microsoft Print to PDF |
+| IMP-Norte | UO_SC_Norte | Idem |
+| IMP-Este | UO_SC_Este | Idem |
+| IMP-Sur | UO_SC_Sur | Idem |
 
 ## Correo
 
-| Parámetro    | Valor                                                     |
-| ------------ | --------------------------------------------------------- |
-| Software     | hMailServer                                               |
-| Dominio      | `mabe.tso1`                                               |
+| Parámetro | Valor |
+|-----------|--------|
+| Software | hMailServer |
+| Dominio | `mabe.tso1` |
 | Cuentas demo | `recepcion@mabe.tso1`, `lab@mabe.tso1`, `admin@mabe.tso1` |
-| Puertos      | SMTP 25, POP3 110, IMAP 143 (lab interno)                 |
+| Puertos | SMTP 25, POP3 110, IMAP 143 (lab interno) |
 
 ## Seguridad (resumen)
 
@@ -90,4 +93,5 @@ Cuotas ejemplo (FSRM):
 - GPO de restricción USB, bloqueo de pantalla, mapeo de unidades
 - Firewall de Windows con reglas por rol
 - RDP solo para Domain Admins / grupo admin
+- RRAS: routing inter-VLAN, sin exposición externa
 - Datos de pacientes: **siempre ficticios** en demos y capturas

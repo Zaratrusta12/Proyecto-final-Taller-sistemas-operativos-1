@@ -1,94 +1,159 @@
-# Checklist Día 1 — VirtualBox + instalación SO
+# Checklist Día 1 — VirtualBox + instalación SO (4 sucursales)
 
-Usar cuando ya tengan las ISO de **Windows Server 2025 Standard** (Desktop Experience) y del cliente.
+**Precondiciones:**
+- [ ] ISOs de Windows Server 2025 Standard Desktop + Windows 10/11
+- [ ] VirtualBox + Extension Pack instalados
+- [ ] Espacio libre >= 200 GB (2 servers + 4 clientes)
+- [ ] RAM >= 16 GB
 
-## A. Preparar VirtualBox
+**Contraseñas lab:**
+- Admin (local/dominio): `Mabe#Lab2025`
+- Usuarios de dominio: `User#Lab`
 
-- [ ] VirtualBox instalado + Extension Pack
-- [ ] Espacio libre ≥ 150 GB
-- [ ] Crear red: **File → Tools → Network Manager → Host-only / o usar Internal Network**
-- [ ] Nombre de red interna en cada VM: `intnet-mabe`
-- [ ] (Opcional) Segundo adaptador NAT solo para actualizaciones
+**Capturas:** `02_Implementacion/capturas/01_instalacion/`
 
-## B. Crear VM SRV-DC01
+---
+
+## A. Preparar VirtualBox: 4 redes internas
+
+1. Abrir VirtualBox
+2. Para cada VM que creemos, el adaptador se asigna a una de estas 4 redes internas:
+
+| Red interna | Sucursal | Subred |
+|-------------|----------|--------|
+| `intnet-mabe-central` | Central | 192.168.10.0/24 |
+| `intnet-mabe-norte` | Norte | 192.168.20.0/24 |
+| `intnet-mabe-este` | Este | 192.168.30.0/24 |
+| `intnet-mabe-sur` | Sur | 192.168.40.0/24 |
+
+> No hay que "crear" las redes en VirtualBox antes. Se crean al asignarles el nombre en el adaptador de una VM.
+
+---
+
+## B. Crear VM SRV-DC01 (4 NICs)
 
 | Recurso | Valor |
 |---------|--------|
 | Name | SRV-DC01 |
-| Type | Microsoft Windows |
-| Version | Other Windows (64-bit) / Server 2022 si no aparece 2025 |
-| RAM | 4096–6144 MB |
+| RAM | 4096-6144 MB |
 | CPUs | 2 |
 | Disk | VDI dinámico 60 GB |
-| Network Adapter 1 | Internal Network, name `intnet-mabe` |
-| Nested VT-x | Enabled (si luego usan Hyper-V aquí) |
+| Adapter 1 | Internal Network, `intnet-mabe-central` |
+| Adapter 2 | Internal Network, `intnet-mabe-norte` |
+| Adapter 3 | Internal Network, `intnet-mabe-este` |
+| Adapter 4 | Internal Network, `intnet-mabe-sur` |
+| Nested VT-x | Enabled (para Hyper-V despues) |
 
+- [ ] Crear VM con 4 adaptadores
 - [ ] Montar ISO WS2025 e instalar **Standard con Experiencia de Escritorio**
-- [ ] Password local admin de lab (ej. `Mabe#Lab2025`)
-- [ ] Completar OOBE / escritorio
-- [ ] **Capturas** en `02_Implementacion/capturas/01_instalacion/`
+- [ ] Password local admin: `Mabe#Lab2025`
+- [ ] Completar OOBE
+- [ ] **Capturas** del proceso de instalacion
 
-### Post-instalación DC01 (antes de AD)
+### Post-instalacion DC01 (antes de AD)
 
-```powershell
-Rename-Computer -NewName 'SRV-DC01' -Restart
-```
+1. Cambiar hostname:
+   - Settings → System → About → Rename this PC
+   - O PowerShell: `Rename-Computer -NewName 'SRV-DC01' -Restart`
 
-Después del reinicio, IP estática:
+2. Configurar las 4 IPs estaticas por GUI:
+   - Settings → Network & Internet → Ethernet → cada adaptador
+   - O abrir `ncpa.cpl` (Network Connections)
+   - Click derecho en cada adaptador → Properties → IPv4 → Properties
 
-```powershell
-# Ajustar el nombre del interfaz si no es Ethernet
-Get-NetAdapter
-New-NetIPAddress -InterfaceAlias 'Ethernet' -IPAddress '192.168.10.10' -PrefixLength 24 -DefaultGateway '192.168.10.1'
-Set-DnsClientServerAddress -InterfaceAlias 'Ethernet' -ServerAddresses '127.0.0.1'
-```
+| Adaptador | IP | Máscara | Gateway | DNS |
+|-----------|----|---------|---------|-----|
+| Ethernet (Central) | 192.168.10.10 | 255.255.255.0 | (vacío) | 127.0.0.1 |
+| Ethernet 2 (Norte) | 192.168.20.10 | 255.255.255.0 | (vacío) | 127.0.0.1 |
+| Ethernet 3 (Este) | 192.168.30.10 | 255.255.255.0 | (vacío) | 127.0.0.1 |
+| Ethernet 4 (Sur) | 192.168.40.10 | 255.255.255.0 | (vacío) | 127.0.0.1 |
 
-- [ ] Hostname `SRV-DC01`
-- [ ] IP `192.168.10.10`
+> El DC no necesita gateway: el es el gateway de cada subred.
+> DNS en 127.0.0.1 por ahora (apuntar a si mismo, que sera el DNS).
+
+- [ ] 4 IPs configuradas
+- [ ] `ipconfig /all` muestra las 4 IPs
 - [ ] Snapshot `00_SO_limpio`
 
-## C. Crear VM SRV-APP01
+---
 
-Igual que arriba, disco 80 GB recomendado.
-
-```powershell
-Rename-Computer -NewName 'SRV-APP01' -Restart
-```
-
-```powershell
-New-NetIPAddress -InterfaceAlias 'Ethernet' -IPAddress '192.168.10.20' -PrefixLength 24 -DefaultGateway '192.168.10.1'
-Set-DnsClientServerAddress -InterfaceAlias 'Ethernet' -ServerAddresses '192.168.10.10'
-```
-
-- [ ] `ping 192.168.10.10` responde cuando DC01 esté arriba
-- [ ] Snapshot `00_SO_limpio`
-- [ ] **Aún NO unir al dominio** (falta promover AD)
-
-## D. Crear VM PC-REC01
+## C. Crear VM SRV-APP01 (1 NIC)
 
 | Recurso | Valor |
 |---------|--------|
-| RAM | 2048–4096 MB |
-| Disk | 40–50 GB |
-| Network | Internal `intnet-mabe` |
+| Name | SRV-APP01 |
+| RAM | 4096 MB |
+| CPUs | 2 |
+| Disk | VDI dinámico 80 GB |
+| Adapter 1 | Internal Network, `intnet-mabe-central` |
 
-- [ ] Instalar Windows 10/11
-- [ ] Hostname `PC-REC01`
-- [ ] Por ahora IP manual temporal `.50` o esperar DHCP
+- [ ] Montar ISO WS2025 e instalar Standard Desktop
+- [ ] Password local admin: `Mabe#Lab2025`
+- [ ] Cambiar hostname a `SRV-APP01`
+- [ ] Configurar IP por GUI (`ncpa.cpl`):
+
+| IP | Máscara | Gateway | DNS |
+|----|---------|---------|-----|
+| 192.168.10.20 | 255.255.255.0 | 192.168.10.10 | 192.168.10.10 |
+
+> Gateway = DC central (para que el DC enrute hacia las sucursales)
+> DNS = DC central
+
+- [ ] `ping 192.168.10.10` responde (cuando DC01 esté arriba)
 - [ ] Snapshot `00_SO_limpio`
+- [ ] **Aún NO unir al dominio** (falta promover AD)
 
-## E. Al terminar el día 1 deben tener
+---
 
-- [ ] 3 VMs instaladas
-- [ ] DC01 y APP01 con IP correcta
-- [ ] Ping entre DC01 y APP01 OK
-- [ ] Capturas de instalación y de `ipconfig` / configuración IP
-- [ ] Topología empezada en draw.io (puede quedar al 80%)
+## D. Crear 4 VMs cliente (1 por sucursal)
+
+### Opcion rapida: instalar 1 y clonar 3 (linked clones)
+
+1. Crear PC-REC01 (Central):
+   - Windows 10/11 Pro, RAM 2048-4096 MB, disco 40 GB
+   - Adapter 1: `intnet-mabe-central`
+   - Hostname `PC-REC01`
+   - DHCP por ahora (sin IP fija)
+   - Snapshot `00_SO_limpio`
+
+2. Clonar PC-REC01 tres veces (linked clone):
+   - VirtualBox → click derecho PC-001 → Clone
+   - Name: PC-NORTE01, PC-ESTE01, PC-SUR01
+   - Clone type: Linked clone
+   - En cada clon, cambiar el adaptador a su red interna:
+     - PC-NORTE01 → `intnet-mabe-norte`
+     - PC-ESTE01 → `intnet-mabe-este`
+     - PC-SUR01 → `intnet-mabe-sur`
+
+3. En cada clon, cambiar hostname:
+   - Settings → System → About → Rename this PC
+   - PC-NORTE01, PC-ESTE01, PC-SUR01
+
+- [ ] PC-REC01 creado y snapshot
+- [ ] PC-NORTE01 clonado, red cambiada, hostname cambiado
+- [ ] PC-ESTE01 clonado, red cambiada, hostname cambiado
+- [ ] PC-SUR01 clonado, red cambiada, hostname cambiado
+
+---
+
+## E. Al terminar el Día 1 deben tener
+
+- [ ] 6 VMs creadas (2 servers + 4 clientes)
+- [ ] SRV-DC01 con 4 NICs y 4 IPs estaticas
+- [ ] SRV-APP01 con 1 NIC e IP .20
+- [ ] 4 clientes, cada uno en su red interna
+- [ ] Ping DC01 ↔ APP01 OK
+- [ ] Capturas de instalacion e `ipconfig`
+- [ ] Topología actualizada en draw.io (4 sucursales)
+- [ ] Snapshots `00_SO_limpio` en todas
+
+---
 
 ## Siguiente (Día 2)
 
 1. En DC01: agregar rol **AD DS** + promover dominio `mabe.tso1`
-2. DNS
-3. DHCP + exclusión
-4. Scripts `crear_ou_grupos.ps1` y `crear_usuarios.ps1`
-5. Unir APP01 y PC-REC01 al dominio
+2. DNS + 4 scopes DHCP (uno por sucursal)
+3. RRAS LAN routing en el DC
+4. AD Sites + Subnets (4 sitios)
+5. Scripts `crear_ou_grupos.ps1` y `crear_usuarios.ps1`
+6. Unir APP01 y los 4 clientes al dominio

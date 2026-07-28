@@ -2,90 +2,92 @@
 <#
 .SYNOPSIS
     Crea usuarios de dominio y los agrega a grupos (5 usuarios por grupo).
+    4 sucursales x 3 grupos x 5 usuarios = 60 cuentas.
 .DESCRIPTION
-    Cumple el mínimo académico: 3 UO x 3 grupos x 5 usuarios = 45 cuentas.
-    Password inicial uniforme de laboratorio (cambiar en producción real).
+    Cumple y supera el minimo academico (45). Password inicial de laboratorio.
 .NOTES
-    Ejecutar en SRV-DC01 como Administrador del dominio, después de crear_ou_grupos.ps1.
+    Ejecutar en SRV-DC01 como Administrador del dominio, despues de crear_ou_grupos.ps1.
 #>
 
 $ErrorActionPreference = 'Stop'
 $DomainDN = (Get-ADDomain).DistinguishedName
 $UPNSuffix = (Get-ADDomain).DNSRoot   # mabe.tso1
 
-# Password de laboratorio académico
+# Password de laboratorio academico
 $PlainPassword = 'User#Lab'
 $Password = ConvertTo-SecureString $PlainPassword -AsPlainText -Force
 
-# Definición: cada grupo con exactamente 5 usuarios únicos
-$UserPlan = @(
-    # --- UO_Recepcion / G_Rec_Usuarios ---
-    @{ Given='Ana';     Sur='Rojas';      Sam='a.rojas';      OU='UO_Recepcion';      Groups=@('G_Rec_Usuarios','G_Rec_Impresion') },
-    @{ Given='Bruno';   Sur='Salas';      Sam='b.salas';      OU='UO_Recepcion';      Groups=@('G_Rec_Usuarios','G_Rec_Impresion') },
-    @{ Given='Carla';   Sur='Mendez';     Sam='c.mendez';     OU='UO_Recepcion';      Groups=@('G_Rec_Usuarios','G_Rec_Impresion') },
-    @{ Given='Diego';   Sur='Paredes';    Sam='d.paredes';    OU='UO_Recepcion';      Groups=@('G_Rec_Usuarios','G_Rec_Impresion') },
-    @{ Given='Elena';   Sur='Quiroga';    Sam='e.quiroga';    OU='UO_Recepcion';      Groups=@('G_Rec_Usuarios','G_Rec_Impresion') },
+# Helper: genera 5 usuarios por grupo con nombres unicos
+# Formato SamAccountName: primera letra nombre + apellido + numero de sucursal
+function New-UserPlan {
+    $plan = @()
+    $sucursales = @(
+        @{ OU='UO_SC_Central'; Prefix='c'; G1='G_Central_Usuarios'; G2='G_Central_Supervisores'; G3='G_Central_Impresion' },
+        @{ OU='UO_SC_Norte';   Prefix='n'; G1='G_Norte_Usuarios';   G2='G_Norte_Supervisores';   G3='G_Norte_Impresion' },
+        @{ OU='UO_SC_Este';    Prefix='e'; G1='G_Este_Usuarios';     G2='G_Este_Supervisores';   G3='G_Este_Impresion' },
+        @{ OU='UO_SC_Sur';     Prefix='s'; G1='G_Sur_Usuarios';      G2='G_Sur_Supervisores';    G3='G_Sur_Impresion' }
+    )
 
-    # --- UO_Recepcion / G_Rec_Supervisores ---
-    @{ Given='Felipe';  Sur='Arias';      Sam='f.arias';      OU='UO_Recepcion';      Groups=@('G_Rec_Supervisores','G_Rec_Impresion') },
-    @{ Given='Gabriela';Sur='Bustos';     Sam='g.bustos';     OU='UO_Recepcion';      Groups=@('G_Rec_Supervisores','G_Rec_Impresion') },
-    @{ Given='Hugo';    Sur='Castro';     Sam='h.castro';     OU='UO_Recepcion';      Groups=@('G_Rec_Supervisores','G_Rec_Impresion') },
-    @{ Given='Ines';    Sur='Dorado';     Sam='i.dorado';     OU='UO_Recepcion';      Groups=@('G_Rec_Supervisores','G_Rec_Impresion') },
-    @{ Given='Jorge';   Sur='Espinoza';   Sam='j.espinoza';   OU='UO_Recepcion';      Groups=@('G_Rec_Supervisores','G_Rec_Impresion') },
+    # Nombres y apuestos ficticios para generar usuarios unicos
+    $nombres = @('Ana','Bruno','Carla','Diego','Elena','Felipe','Gabriela','Hugo','Ines','Jorge',
+                 'Karina','Luis','Marta','Nicolas','Olga','Pablo','Rosa','Sergio','Tania','Ulises',
+                 'Valeria','Walter','Ximena','Yamil','Zulema','Adrian','Belen','Cesar','Diana','Edgar',
+                 'Fernanda','Gustavo','Helena','Ivan','Julia','Kevin','Laura','Marco','Nancy','Oscar',
+                 'Patricia','Roberto','Sandra','Tomas','Ursula','Vicente','Wendy','Yenny','Zaida','Alvaro',
+                 'Beatriz','Carlos','Daniela','Esteban','Fatima')
+    $apellidos = @('Rojas','Salas','Mendez','Paredes','Quiroga','Arias','Bustos','Castro','Dorado','Espinoza',
+                   'Flores','Guzman','Hinojosa','Ibanez','Jimenez','Klein','Luna','Mora','Nieto','Ortega',
+                   'Pinto','Quesada','Rivas','Soto','Torrez','Ugarte','Vargas','Wolf','Yanez','Zambrana',
+                   'Alvarez','Benitez','Caceres','Delgado','Estrada','Franco','Garcia','Herrera','Irala','Justiniano',
+                   'Krell','Loza','Miranda','Nava','Orellana','Paz','Quispe','Roca','Sandi','Tapia',
+                   'Ugarte','Vega','Wyss','Zamora','Antelo')
 
-    # --- usuarios extra solo en G_Rec_Impresion para completar 5 "propios" si se audita por grupo primario ---
-    # (Los 10 de arriba ya cubren Impresion por membresía múltiple.
-    #  Se agregan 5 dedicados a impresión recepción para conteo limpio si el docente lista miembros del grupo.)
-    @{ Given='Karina';  Sur='Flores';     Sam='k.flores';     OU='UO_Recepcion';      Groups=@('G_Rec_Impresion') },
-    @{ Given='Luis';    Sur='Guzman';     Sam='l.guzman';     OU='UO_Recepcion';      Groups=@('G_Rec_Impresion') },
-    @{ Given='Marta';   Sur='Hinojosa';   Sam='m.hinojosa';   OU='UO_Recepcion';      Groups=@('G_Rec_Impresion') },
-    @{ Given='Nicolas'; Sur='Ibanez';     Sam='n.ibanez';     OU='UO_Recepcion';      Groups=@('G_Rec_Impresion') },
-    @{ Given='Olga';    Sur='Jimenez';    Sam='o.jimenez';    OU='UO_Recepcion';      Groups=@('G_Rec_Impresion') },
+    $idx = 0
+    foreach ($suc in $sucursales) {
+        # 5 usuarios para G1 (Usuarios)
+        for ($i = 0; $i -lt 5; $i++) {
+            $g = $suc.G1
+            $sam = "$($suc.Prefix)$($apellidos[$idx % $apellidos.Count])$i"
+            $plan += @{
+                Given = $nombres[$idx % $nombres.Count]
+                Sur   = $apellidos[$idx % $apellidos.Count]
+                Sam   = $sam.ToLower()
+                OU    = $suc.OU
+                Groups = @($g, $suc.G3)
+            }
+            $idx++
+        }
+        # 5 usuarios para G2 (Supervisores)
+        for ($i = 0; $i -lt 5; $i++) {
+            $sam = "$($suc.Prefix)$($apellidos[$idx % $apellidos.Count])s$i"
+            $plan += @{
+                Given = $nombres[$idx % $nombres.Count]
+                Sur   = $apellidos[$idx % $apellidos.Count]
+                Sam   = $sam.ToLower()
+                OU    = $suc.OU
+                Groups = @($suc.G2, $suc.G3)
+            }
+            $idx++
+        }
+        # 5 usuarios para G3 (Impresion) dedicados
+        for ($i = 0; $i -lt 5; $i++) {
+            $sam = "$($suc.Prefix)$($apellidos[$idx % $apellidos.Count])p$i"
+            $plan += @{
+                Given = $nombres[$idx % $nombres.Count]
+                Sur   = $apellidos[$idx % $apellidos.Count]
+                Sam   = $sam.ToLower()
+                OU    = $suc.OU
+                Groups = @($suc.G3)
+            }
+            $idx++
+        }
+    }
+    return $plan
+}
 
-    # --- UO_Laboratorio / G_Lab_Analistas ---
-    @{ Given='Pablo';   Sur='Klein';      Sam='p.klein';      OU='UO_Laboratorio';    Groups=@('G_Lab_Analistas','G_Lab_Impresion') },
-    @{ Given='Rosa';    Sur='Luna';       Sam='r.luna';       OU='UO_Laboratorio';    Groups=@('G_Lab_Analistas','G_Lab_Impresion') },
-    @{ Given='Sergio';  Sur='Mora';       Sam='s.mora';       OU='UO_Laboratorio';    Groups=@('G_Lab_Analistas','G_Lab_Impresion') },
-    @{ Given='Tania';   Sur='Nieto';      Sam='t.nieto';      OU='UO_Laboratorio';    Groups=@('G_Lab_Analistas','G_Lab_Impresion') },
-    @{ Given='Ulises';  Sur='Ortega';     Sam='u.ortega';     OU='UO_Laboratorio';    Groups=@('G_Lab_Analistas','G_Lab_Impresion') },
+$UserPlan = New-UserPlan
 
-    # --- UO_Laboratorio / G_Lab_Jefes ---
-    @{ Given='Valeria'; Sur='Pinto';      Sam='v.pinto';      OU='UO_Laboratorio';    Groups=@('G_Lab_Jefes','G_Lab_Impresion') },
-    @{ Given='Walter';  Sur='Quesada';    Sam='w.quesada';    OU='UO_Laboratorio';    Groups=@('G_Lab_Jefes','G_Lab_Impresion') },
-    @{ Given='Ximena';  Sur='Rivas';      Sam='x.rivas';      OU='UO_Laboratorio';    Groups=@('G_Lab_Jefes','G_Lab_Impresion') },
-    @{ Given='Yamil';   Sur='Soto';       Sam='y.soto';       OU='UO_Laboratorio';    Groups=@('G_Lab_Jefes','G_Lab_Impresion') },
-    @{ Given='Zulema';  Sur='Torrez';     Sam='z.torrez';     OU='UO_Laboratorio';    Groups=@('G_Lab_Jefes','G_Lab_Impresion') },
-
-    # --- G_Lab_Impresion dedicados ---
-    @{ Given='Adrian';  Sur='Ugarte';     Sam='ad.ugarte';    OU='UO_Laboratorio';    Groups=@('G_Lab_Impresion') },
-    @{ Given='Belen';   Sur='Vargas';     Sam='be.vargas';    OU='UO_Laboratorio';    Groups=@('G_Lab_Impresion') },
-    @{ Given='Cesar';   Sur='Wolf';       Sam='ce.wolf';      OU='UO_Laboratorio';    Groups=@('G_Lab_Impresion') },
-    @{ Given='Diana';   Sur='Yanez';      Sam='di.yanez';     OU='UO_Laboratorio';    Groups=@('G_Lab_Impresion') },
-    @{ Given='Edgar';   Sur='Zambrana';   Sam='ed.zambrana';  OU='UO_Laboratorio';    Groups=@('G_Lab_Impresion') },
-
-    # --- UO_Administracion / G_Adm_Contabilidad ---
-    @{ Given='Fernanda';Sur='Alvarez';    Sam='fe.alvarez';   OU='UO_Administracion'; Groups=@('G_Adm_Contabilidad','G_Adm_Impresion') },
-    @{ Given='Gustavo'; Sur='Benitez';    Sam='gu.benitez';   OU='UO_Administracion'; Groups=@('G_Adm_Contabilidad','G_Adm_Impresion') },
-    @{ Given='Helena';  Sur='Caceres';    Sam='he.caceres';   OU='UO_Administracion'; Groups=@('G_Adm_Contabilidad','G_Adm_Impresion') },
-    @{ Given='Ivan';    Sur='Delgado';    Sam='iv.delgado';   OU='UO_Administracion'; Groups=@('G_Adm_Contabilidad','G_Adm_Impresion') },
-    @{ Given='Julia';   Sur='Estrada';    Sam='ju.estrada';   OU='UO_Administracion'; Groups=@('G_Adm_Contabilidad','G_Adm_Impresion') },
-
-    # --- UO_Administracion / G_Adm_RRHH ---
-    @{ Given='Kevin';   Sur='Franco';     Sam='ke.franco';    OU='UO_Administracion'; Groups=@('G_Adm_RRHH','G_Adm_Impresion') },
-    @{ Given='Laura';   Sur='Garcia';     Sam='la.garcia';    OU='UO_Administracion'; Groups=@('G_Adm_RRHH','G_Adm_Impresion') },
-    @{ Given='Marco';   Sur='Herrera';    Sam='ma.herrera';   OU='UO_Administracion'; Groups=@('G_Adm_RRHH','G_Adm_Impresion') },
-    @{ Given='Nancy';   Sur='Irala';      Sam='na.irala';     OU='UO_Administracion'; Groups=@('G_Adm_RRHH','G_Adm_Impresion') },
-    @{ Given='Oscar';   Sur='Justiniano'; Sam='os.justiniano'; OU='UO_Administracion'; Groups=@('G_Adm_RRHH','G_Adm_Impresion') },
-
-    # --- G_Adm_Impresion dedicados ---
-    @{ Given='Patricia';Sur='Krell';      Sam='pa.krell';     OU='UO_Administracion'; Groups=@('G_Adm_Impresion') },
-    @{ Given='Roberto'; Sur='Loza';       Sam='ro.loza';      OU='UO_Administracion'; Groups=@('G_Adm_Impresion') },
-    @{ Given='Sandra';  Sur='Miranda';    Sam='sa.miranda';   OU='UO_Administracion'; Groups=@('G_Adm_Impresion') },
-    @{ Given='Tomas';   Sur='Nava';       Sam='to.nava';      OU='UO_Administracion'; Groups=@('G_Adm_Impresion') },
-    @{ Given='Ursula';  Sur='Orellana';   Sam='ur.orellana';  OU='UO_Administracion'; Groups=@('G_Adm_Impresion') }
-)
-
-Write-Host '=== Creando usuarios Laboratorio Mabe ===' -ForegroundColor Cyan
+Write-Host '=== Creando usuarios Laboratorio Mabe (4 sucursales) ===' -ForegroundColor Cyan
 $created = 0
 $skipped = 0
 
@@ -109,7 +111,7 @@ foreach ($u in $UserPlan) {
             -AccountPassword $Password `
             -ChangePasswordAtLogon $false `
             -Enabled $true `
-            -Description "Usuario lab academico Mabe - $($u.OU)"
+            -Description "Usuario lab Mabe - $($u.OU)"
         Write-Host "[OK] $($u.Sam) ($display)" -ForegroundColor Green
         $created++
     }
@@ -119,16 +121,17 @@ foreach ($u in $UserPlan) {
             Add-ADGroupMember -Identity $grp -Members $u.Sam -ErrorAction Stop
         }
         catch {
-            # Ya es miembro u otro warning no crítico
+            # Ya es miembro u otro warning no critico
         }
     }
 }
 
 Write-Host '=== Conteo de miembros por grupo ===' -ForegroundColor Cyan
 $groupNames = @(
-    'G_Rec_Usuarios','G_Rec_Supervisores','G_Rec_Impresion',
-    'G_Lab_Analistas','G_Lab_Jefes','G_Lab_Impresion',
-    'G_Adm_Contabilidad','G_Adm_RRHH','G_Adm_Impresion'
+    'G_Central_Usuarios','G_Central_Supervisores','G_Central_Impresion',
+    'G_Norte_Usuarios','G_Norte_Supervisores','G_Norte_Impresion',
+    'G_Este_Usuarios','G_Este_Supervisores','G_Este_Impresion',
+    'G_Sur_Usuarios','G_Sur_Supervisores','G_Sur_Impresion'
 )
 foreach ($gn in $groupNames) {
     $count = @(Get-ADGroupMember -Identity $gn -ErrorAction SilentlyContinue).Count

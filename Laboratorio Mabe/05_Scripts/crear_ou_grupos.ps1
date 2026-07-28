@@ -1,9 +1,10 @@
 #Requires -Modules ActiveDirectory
 <#
 .SYNOPSIS
-    Crea UO y grupos de seguridad para Laboratorio Mabe (dominio mabe.tso1).
+    Crea UO y grupos de seguridad para Laboratorio Mabe (4 sucursales).
+    Estructura: 4 UO (una por sucursal) x 3 grupos por UO = 12 grupos.
 .NOTES
-    Ejecutar en SRV-DC01 como Administrador del dominio.
+    Ejecutar en SRV-DC01 como Administrador del dominio, despues de promover AD.
     Ejemplo:
       Set-ExecutionPolicy Bypass -Scope Process -Force
       .\crear_ou_grupos.ps1
@@ -12,27 +13,32 @@
 $ErrorActionPreference = 'Stop'
 $DomainDN = (Get-ADDomain).DistinguishedName
 
+# 4 UO, una por sucursal
 $OUs = @(
-    @{ Name = 'UO_Recepcion';      Path = $DomainDN },
-    @{ Name = 'UO_Laboratorio';    Path = $DomainDN },
-    @{ Name = 'UO_Administracion'; Path = $DomainDN }
+    @{ Name = 'UO_SC_Central'; Path = $DomainDN },
+    @{ Name = 'UO_SC_Norte';   Path = $DomainDN },
+    @{ Name = 'UO_SC_Este';    Path = $DomainDN },
+    @{ Name = 'UO_SC_Sur';     Path = $DomainDN }
 )
 
+# 3 grupos por UO = 12 total
 $Groups = @(
-    # Recepción — 3 grupos
-    @{ Name = 'G_Rec_Usuarios';      Sam = 'G_Rec_Usuarios';      OU = 'UO_Recepcion';      Desc = 'Usuarios de recepcion Laboratorio Mabe' },
-    @{ Name = 'G_Rec_Supervisores';  Sam = 'G_Rec_Supervisores';  OU = 'UO_Recepcion';      Desc = 'Supervisores de recepcion' },
-    @{ Name = 'G_Rec_Impresion';     Sam = 'G_Rec_Impresion';     OU = 'UO_Recepcion';      Desc = 'Permiso impresora recepcion' },
-
-    # Laboratorio — 3 grupos
-    @{ Name = 'G_Lab_Analistas';    Sam = 'G_Lab_Analistas';    OU = 'UO_Laboratorio';    Desc = 'Analistas y tecnólogos de laboratorio' },
-    @{ Name = 'G_Lab_Jefes';        Sam = 'G_Lab_Jefes';        OU = 'UO_Laboratorio';    Desc = 'Jefatura de laboratorio' },
-    @{ Name = 'G_Lab_Impresion';    Sam = 'G_Lab_Impresion';    OU = 'UO_Laboratorio';    Desc = 'Permiso impresora laboratorio' },
-
-    # Administración — 3 grupos
-    @{ Name = 'G_Adm_Contabilidad'; Sam = 'G_Adm_Contabilidad'; OU = 'UO_Administracion'; Desc = 'Personal de contabilidad' },
-    @{ Name = 'G_Adm_RRHH';         Sam = 'G_Adm_RRHH';         OU = 'UO_Administracion'; Desc = 'Recursos humanos' },
-    @{ Name = 'G_Adm_Impresion';    Sam = 'G_Adm_Impresion';    OU = 'UO_Administracion'; Desc = 'Permiso impresora administracion' }
+    # Central
+    @{ Name = 'G_Central_Usuarios';      Sam = 'G_Central_Usuarios';      OU = 'UO_SC_Central'; Desc = 'Usuarios sucursal Central' },
+    @{ Name = 'G_Central_Supervisores';  Sam = 'G_Central_Supervisores';  OU = 'UO_SC_Central'; Desc = 'Supervisores sucursal Central' },
+    @{ Name = 'G_Central_Impresion';     Sam = 'G_Central_Impresion';     OU = 'UO_SC_Central'; Desc = 'Impresion sucursal Central' },
+    # Norte
+    @{ Name = 'G_Norte_Usuarios';       Sam = 'G_Norte_Usuarios';        OU = 'UO_SC_Norte';   Desc = 'Usuarios sucursal Norte' },
+    @{ Name = 'G_Norte_Supervisores';   Sam = 'G_Norte_Supervisores';   OU = 'UO_SC_Norte';   Desc = 'Supervisores sucursal Norte' },
+    @{ Name = 'G_Norte_Impresion';      Sam = 'G_Norte_Impresion';       OU = 'UO_SC_Norte';   Desc = 'Impresion sucursal Norte' },
+    # Este
+    @{ Name = 'G_Este_Usuarios';        Sam = 'G_Este_Usuarios';         OU = 'UO_SC_Este';    Desc = 'Usuarios sucursal Este' },
+    @{ Name = 'G_Este_Supervisores';    Sam = 'G_Este_Supervisores';     OU = 'UO_SC_Este';    Desc = 'Supervisores sucursal Este' },
+    @{ Name = 'G_Este_Impresion';       Sam = 'G_Este_Impresion';        OU = 'UO_SC_Este';    Desc = 'Impresion sucursal Este' },
+    # Sur
+    @{ Name = 'G_Sur_Usuarios';         Sam = 'G_Sur_Usuarios';          OU = 'UO_SC_Sur';     Desc = 'Usuarios sucursal Sur' },
+    @{ Name = 'G_Sur_Supervisores';     Sam = 'G_Sur_Supervisores';      OU = 'UO_SC_Sur';     Desc = 'Supervisores sucursal Sur' },
+    @{ Name = 'G_Sur_Impresion';        Sam = 'G_Sur_Impresion';         OU = 'UO_SC_Sur';     Desc = 'Impresion sucursal Sur' }
 )
 
 Write-Host '=== Creando Unidades Organizativas ===' -ForegroundColor Cyan

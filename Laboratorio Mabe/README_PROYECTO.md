@@ -59,7 +59,7 @@ Proyecto socioformativo: infraestructura Windows Server para continuidad operati
 
 | Cuenta | Uso | Password real del grupo |
 |--------|-----|-------------------|
-| Administrador local / Domain Admin | Setup y administración | `Admin#Lab2025` |
+| Administrador local / Domain Admin | Setup y administración | `Mabe#Lab2025` |
 | Usuarios de dominio | Pruebas de cliente/GPO | `User#Lab` |
 
 ---
