@@ -1,6 +1,7 @@
 # Checklist Día 2 — SERVER1: AD DS + DNS + DHCP + RRAS + Sites (4 sucursales)
 
 **Precondiciones (ya cumplidas):**
+
 - [x] 6 VMs creadas (2 servers + 4 clientes)
 - [x] SRV-DC01 con 4 NICs y 4 IPs estáticas
 - [x] SRV-APP01 con 1 NIC e IP .20
@@ -46,6 +47,7 @@
 9. El servidor **reinicia solo**
 
 **Capturas obligatorias:**
+
 - Pantalla "Add a new forest" con `mabe.tso1`
 - Review Options
 - Tras reinicio: login `MABE\Administrator` con `Mabe#Lab2025`
@@ -64,6 +66,7 @@ Tras reinicio, login como `MABE\Administrator`.
    - Debe haber registros de SRV-DC01
 
 **Capturas:**
+
 - Server Manager con roles
 - ADUC con dominio `mabe.tso1`
 - DNS Manager con zona
@@ -72,24 +75,65 @@ Tras reinicio, login como `MABE\Administrator`.
 
 ---
 
-## 4. DNS — registros
+## 4. DNS — zonas inversas + registros
+
+### 4.1 Crear 4 zonas de búsqueda inversa (GUI)
+
+> Por defecto no se crean solas. Son necesarias para que los registros PTR funcionen.
 
 1. Abrir **DNS Manager** (`dnsmgmt.msc`)
-2. Expandir SRV-DC01 → Forward Lookup Zones → `mabe.tso1`
-3. Verificar que exista el registro **SRV-DC01** (A)
-4. Crear registro A para APP01:
+2. Expandir **SRV-DC01 → Reverse Lookup Zones**
+3. Click derecho sobre **Reverse Lookup Zones** → **New Zone...**
+4. Wizard:
+   - Zone Type: **Primary zone** → Next
+   - (Si pregunta "Store in Active Directory": **Yes** porque es DC) → Next
+   - **IPv4 Reverse Lookup Zone** → Next
+   - **Network ID:** escribir `192.168.10` → Next
+   - Dynamic Updates: **Allow only secure dynamic updates** → Next
+   - **Finish**
+5. Repetir para las otras 3 subredes:
+   - Network ID `192.168.20` (Norte)
+   - Network ID `192.168.30` (Este)
+   - Network ID `192.168.40` (Sur)
+
+**Zonas resultantes:**
+
+- `10.168.192.in-addr.arpa`
+- `20.168.192.in-addr.arpa`
+- `30.168.192.in-addr.arpa`
+- `40.168.192.in-addr.arpa`
+
+### 4.2 Registros A (forward) + PTR (reverse)
+
+1. Expandir **SRV-DC01 → Forward Lookup Zones → `mabe.tso1`**
+2. Verificar que exista el registro **SRV-DC01** (A) creado automáticamente
+3. Crear registro A para APP01:
    - Click derecho en la zona → **New Host (A)**
    - Name: `SRV-APP01`
    - IP: `192.168.10.20`
-   - Marcar "Create associated pointer (PTR) record"
+   - Marcar **"Create associated pointer (PTR) record"**
    - **Add Host**
+4. Si el registro A de SRV-DC01 no tiene PTR, crearlo:
+   - Doble click sobre el registro SRV-DC01 → verificar IP
+   - Si no tiene PTR, borrar y recrear marcando la opción PTR
 
-Pruebas:
-- Abrir CMD: `nslookup mabe.tso1`
-- `nslookup srv-dc01.mabe.tso1`
-- `nslookup srv-app01.mabe.tso1`
+### 4.3 Pruebas de resolución (CMD)
 
-**Capturas:** zona DNS + salida de nslookup
+```cmd
+nslookup mabe.tso1
+nslookup srv-dc01.mabe.tso1
+nslookup srv-app01.mabe.tso1
+nslookup 192.168.10.10
+nslookup 192.168.10.20
+```
+
+Las 5 deben resolver. Si `nslookup 192.168.10.10` dice "can't find", falta la zona inversa o el PTR.
+
+**Capturas:**
+
+- Forward Lookup Zone con registros A
+- Reverse Lookup Zones con registros PTR
+- Salida de los 5 nslookup
 
 ---
 
@@ -110,66 +154,75 @@ Abrir **DHCP** (`dhcpmgmt.msc`). Expandir SRV-DC01 → IPv4.
 
 #### Scope 1: LAN-Central
 
-| Campo | Valor |
-|-------|-------|
-| Name | LAN-Central |
-| Start IP | 192.168.10.100 |
-| End IP | 192.168.10.200 |
-| Subnet mask | 255.255.255.0 |
-| Exclusion Start | 192.168.10.1 |
-| Exclusion End | 192.168.10.50 |
-| Lease | 8 días (default) |
-| Router (Gateway) | 192.168.10.10 |
-| DNS Servers | 192.168.10.10 |
-| DNS Domain Name | mabe.tso1 |
-| Activate scope | Yes |
+| Campo            | Valor            |
+| ---------------- | ---------------- |
+| Name             | LAN-Central      |
+| Start IP         | 192.168.10.1     |
+| End IP           | 192.168.10.200   |
+| Subnet mask      | 255.255.255.0    |
+| Exclusion Start  | 192.168.10.1     |
+| Exclusion End    | 192.168.10.50    |
+| Lease            | 8 días (default) |
+| Router (Gateway) | 192.168.10.10    |
+| DNS Servers      | 192.168.10.10    |
+| DNS Domain Name  | mabe.tso1        |
+| Activate scope   | Yes              |
+
+> Rango entregable: `.51-.200` (150 IPs). `.1-.50` reservado para servidores, impresoras y equipos de red.
 
 #### Scope 2: LAN-Norte
 
-| Campo | Valor |
-|-------|-------|
-| Name | LAN-Norte |
-| Start IP | 192.168.20.100 |
-| End IP | 192.168.20.200 |
-| Subnet mask | 255.255.255.0 |
-| Exclusion Start | 192.168.20.1 |
-| Exclusion End | 192.168.20.50 |
-| Router | 192.168.20.10 |
-| DNS Servers | 192.168.20.10 |
-| DNS Domain Name | mabe.tso1 |
-| Activate | Yes |
+| Campo           | Valor          |
+| --------------- | -------------- |
+| Name            | LAN-Norte      |
+| Start IP        | 192.168.20.1   |
+| End IP          | 192.168.20.200 |
+| Subnet mask     | 255.255.255.0  |
+| Exclusion Start | 192.168.20.1   |
+| Exclusion End   | 192.168.20.50  |
+| Router          | 192.168.20.10  |
+| DNS Servers     | 192.168.20.10  |
+| DNS Domain Name | mabe.tso1      |
+| Activate        | Yes            |
+
+> Rango entregable: `.51-.200` (150 IPs). `.1-.50` reservado para servidores y equipos de red.
 
 #### Scope 3: LAN-Este
 
-| Campo | Valor |
-|-------|-------|
-| Name | LAN-Este |
-| Start IP | 192.168.30.100 |
-| End IP | 192.168.30.200 |
-| Subnet mask | 255.255.255.0 |
-| Exclusion Start | 192.168.30.1 |
-| Exclusion End | 192.168.30.50 |
-| Router | 192.168.30.10 |
-| DNS Servers | 192.168.30.10 |
-| DNS Domain Name | mabe.tso1 |
-| Activate | Yes |
+| Campo           | Valor          |
+| --------------- | -------------- |
+| Name            | LAN-Este       |
+| Start IP        | 192.168.30.1   |
+| End IP          | 192.168.30.200 |
+| Subnet mask     | 255.255.255.0  |
+| Exclusion Start | 192.168.30.1   |
+| Exclusion End   | 192.168.30.50  |
+| Router          | 192.168.30.10  |
+| DNS Servers     | 192.168.30.10  |
+| DNS Domain Name | mabe.tso1      |
+| Activate        | Yes            |
+
+> Rango entregable: `.51-.200` (150 IPs). `.1-.50` reservado para servidores y equipos de red.
 
 #### Scope 4: LAN-Sur
 
-| Campo | Valor |
-|-------|-------|
-| Name | LAN-Sur |
-| Start IP | 192.168.40.100 |
-| End IP | 192.168.40.200 |
-| Subnet mask | 255.255.255.0 |
-| Exclusion Start | 192.168.40.1 |
-| Exclusion End | 192.168.40.50 |
-| Router | 192.168.40.10 |
-| DNS Servers | 192.168.40.10 |
-| DNS Domain Name | mabe.tso1 |
-| Activate | Yes |
+| Campo           | Valor          |
+| --------------- | -------------- |
+| Name            | LAN-Sur        |
+| Start IP        | 192.168.40.1   |
+| End IP          | 192.168.40.200 |
+| Subnet mask     | 255.255.255.0  |
+| Exclusion Start | 192.168.40.1   |
+| Exclusion End   | 192.168.40.50  |
+| Router          | 192.168.40.10  |
+| DNS Servers     | 192.168.40.10  |
+| DNS Domain Name | mabe.tso1      |
+| Activate        | Yes            |
+
+> Rango entregable: `.51-.200` (150 IPs). `.1-.50` reservado para servidores y equipos de red.
 
 **Capturas obligatorias:**
+
 - Los 4 scopes activos en la consola DHCP
 - Detalle de cada scope con su rango de exclusión
 - Opciones de cada scope (Router + DNS)
@@ -207,6 +260,7 @@ Abrir **DHCP** (`dhcpmgmt.msc`). Expandir SRV-DC01 → IPv4.
 4. Si una no aparece, click derecho → **Properties** → General → habilitar "IP routing"
 
 **Capturas:**
+
 - RRAS console con LAN routing habilitado
 - Las 4 interfaces visibles y habilitadas
 - Estado del servicio RRAS (Started)
@@ -225,13 +279,16 @@ Abrir **DHCP** (`dhcpmgmt.msc`). Expandir SRV-DC01 → IPv4.
 ### 7.2 Crear 4 sitios
 
 1. Click derecho sobre **Sites** → **New → Site**
+
 2. Crear los 4 sitios:
+   
    - Nombre: `SC-Central` → OK
    - Nombre: `SC-Norte` → OK
    - Nombre: `SC-Este` → OK
    - Nombre: `SC-Sur` → OK
 
 3. Mover el DC al sitio Central:
+   
    - Expandir `SC-Central` → debería estar vacío (o moverlo)
    - Expandir `Default-First-Site-Name` →Servers → SRV-DC01
    - Click derecho SRV-DC01 → **Move** → seleccionar `SC-Central`
@@ -243,19 +300,21 @@ Abrir **DHCP** (`dhcpmgmt.msc`). Expandir SRV-DC01 → IPv4.
 1. Click derecho sobre **Subnets** → **New → Subnet**
 2. Crear las 4 subredes y asociarlas a su sitio:
 
-| Address prefix | Site |
-|----------------|------|
+| Address prefix  | Site       |
+| --------------- | ---------- |
 | 192.168.10.0/24 | SC-Central |
-| 192.168.20.0/24 | SC-Norte |
-| 192.168.30.0/24 | SC-Este |
-| 192.168.40.0/24 | SC-Sur |
+| 192.168.20.0/24 | SC-Norte   |
+| 192.168.30.0/24 | SC-Este    |
+| 192.168.40.0/24 | SC-Sur     |
 
 Para cada una:
-   - Prefix: `192.168.10.0/24` (ejemplo Central)
-   - Seleccionar site: `SC-Central`
-   - OK
+
+- Prefix: `192.168.10.0/24` (ejemplo Central)
+- Seleccionar site: `SC-Central`
+- OK
 
 **Capturas:**
+
 - Sites and Services con los 4 sitios
 - Las 4 subredes asociadas a sus sitios
 - SRV-DC01 en SC-Central
@@ -267,6 +326,7 @@ Para cada una:
 ### 8.1 Copiar scripts al DC
 
 Copiar a una carpeta en SRV-DC01 (ej. `C:\Scripts\`):
+
 - `05_Scripts/crear_ou_grupos.ps1`
 - `05_Scripts/crear_usuarios.ps1`
 
@@ -275,12 +335,17 @@ Copiar a una carpeta en SRV-DC01 (ej. `C:\Scripts\`):
 ### 8.2 Ejecutar
 
 1. Abrir PowerShell como Administrador
+
 2. Navegar a la carpeta donde copiaron los scripts
+
 3. Habilitar ejecución temporal:
+   
    ```powershell
    Set-ExecutionPolicy Bypass -Scope Process -Force
    ```
+
 4. Ejecutar:
+   
    ```powershell
    .\crear_ou_grupos.ps1
    .\crear_usuarios.ps1
@@ -292,7 +357,6 @@ Copiar a una carpeta en SRV-DC01 (ej. `C:\Scripts\`):
 2. Expandir `mabe.tso1`
 3. Ver las 4 UO: `UO_SC_Central`, `UO_SC_Norte`, `UO_SC_Este`, `UO_SC_Sur`
 4. Expandir cada UO → ver 3 grupos y 15 usuarios cada una
-
 - [ ] 4 UO visibles
 - [ ] 3 grupos por UO (12 total)
 - [ ] 5+ usuarios por grupo (60 total)
@@ -311,12 +375,18 @@ Password de los users: `User#Lab`
 3. `nslookup mabe.tso1` → debe resolver
 
 Unir al dominio:
+
 1. Settings → System → About → **Advanced system settings**
+
 2. Computer Name tab → **Change**
+
 3. Seleccionar **Domain** → escribir `mabe.tso1` → OK
+
 4. Pedirá credenciales:
+   
    - Usuario: `Administrator` o `mabe\Administrator`
    - Password: `Mabe#Lab2025`
+
 5. Mensaje "Welcome to the mabe domain" → OK → Reiniciar
 
 6. Login: `MABE\Administrator` con `Mabe#Lab2025`
@@ -339,31 +409,32 @@ ipconfig /all
 
 Verificar que recibe IP del scope correcto:
 
-| Cliente | IP esperada | Gateway | DNS |
-|---------|-------------|---------|-----|
+| Cliente            | IP esperada  | Gateway       | DNS           |
+| ------------------ | ------------ | ------------- | ------------- |
 | PC-REC01 (Central) | 192.168.10.x | 192.168.10.10 | 192.168.10.10 |
 | PC-NORTE01 (Norte) | 192.168.20.x | 192.168.20.10 | 192.168.20.10 |
-| PC-ESTE01 (Este) | 192.168.30.x | 192.168.30.10 | 192.168.30.10 |
-| PC-SUR01 (Sur) | 192.168.40.x | 192.168.40.10 | 192.168.40.10 |
+| PC-ESTE01 (Este)   | 192.168.30.x | 192.168.30.10 | 192.168.30.10 |
+| PC-SUR01 (Sur)     | 192.168.40.x | 192.168.40.10 | 192.168.40.10 |
 
 > Si un cliente no recibe IP, verificar que su adaptador esté en la red interna correcta.
 
 ### 10.2 Unir cada cliente al dominio
 
 Repetir en cada cliente:
+
 1. Settings → System → About → **Advanced system settings**
 2. Computer Name tab → **Change**
 3. Seleccionar **Domain** → escribir `mabe.tso1` → OK
 4. Credenciales: `Administrator` / `Mabe#Lab2025`
 5. Reiniciar
 6. Login con usuario de dominio (ej. cualquier user del script, password `User#Lab`)
-
 - [ ] PC-REC01 en dominio
 - [ ] PC-NORTE01 en dominio
 - [ ] PC-ESTE01 en dominio
 - [ ] PC-SUR01 en dominio
 
 **Capturas:**
+
 - `ipconfig /all` de cada cliente (4 capturas, una por sucursal)
 - Login exitoso de un usuario de dominio en cada sucursal
 - En el DC: DHCP → Address Leases con los 4 clientes
@@ -385,34 +456,37 @@ Repetir en cada cliente:
 
 ## 12. Cierre del Día 2 — checklist de aceptación
 
-| # | Prueba | OK? |
-|---|--------|-----|
-| 1 | Dominio `mabe.tso1` existe | |
-| 2 | DNS resuelve DC y APP | |
-| 3 | 4 scopes DHCP activos | |
-| 4 | Exclusión `.1-.50` visible en los 4 | |
-| 5 | RRAS LAN routing habilitado | |
-| 6 | 4 AD Sites + 4 Subnets | |
-| 7 | 4 UO creadas | |
-| 8 | 3 grupos por UO (12 total) | |
-| 9 | ≥5 usuarios por grupo (60 total) | |
-| 10 | APP01 en dominio | |
-| 11 | 4 clientes con IP por DHCP | |
-| 12 | Login usuario dominio en los 4 clientes | |
-| 13 | Ping de un cliente Norte a `192.168.10.20` (APP01) funciona | |
-| 14 | Navegación web desde Norte a `http://192.168.10.20` (si IIS ya está) | |
-| 15 | Capturas guardadas | |
-| 16 | Snapshots `01_AD_OK`, `03_RRAS_OK`, `02_DHCP_CLIENT_OK` | |
+| #   | Prueba                                                               | OK? |
+| --- | -------------------------------------------------------------------- | --- |
+| 1   | Dominio `mabe.tso1` existe                                           | x   |
+| 2   | DNS resuelve DC y APP                                                | x   |
+| 3   | 4 scopes DHCP activos                                                | x   |
+| 4   | Exclusión `.1-.50` visible en los 4                                  | x   |
+| 5   | RRAS LAN routing habilitado                                          | x   |
+| 6   | 4 AD Sites + 4 Subnets                                               | x   |
+| 7   | 4 UO creadas                                                         | x   |
+| 8   | 3 grupos por UO (12 total)                                           | x   |
+| 9   | ≥5 usuarios por grupo (60 total)                                     | x   |
+| 10  | APP01 en dominio                                                     | x   |
+| 11  | 4 clientes con IP por DHCP                                           | x   |
+| 12  | Login usuario dominio en los 4 clientes                              | x   |
+| 13  | Ping de un cliente Norte a `192.168.10.20` (APP01) funciona          | x   |
+| 14  | Navegación web desde Norte a `http://192.168.10.20` (si IIS ya está) | x   |
+| 15  | Capturas guardadas                                                   |     |
+| 16  | Snapshots `01_AD_OK`, `03_RRAS_OK`, `02_DHCP_CLIENT_OK`              |     |
 
 > El punto 13 valida que el routing funciona. Si un cliente en Norte llega a APP01 en la central, el RRAS está bien configurado.
 
 ### Prueba clave de routing
 
 Desde PC-NORTE01 (IP 192.168.20.x):
+
 ```cmd
 ping 192.168.10.20
 ```
+
 Si responde, RRAS funciona. Si no, revisar:
+
 - RRAS habilitado y servicio corriendo
 - Gateway del cliente = IP del DC en su subred (192.168.20.10)
 - Gateway de APP01 = 192.168.10.10
@@ -429,27 +503,61 @@ Si responde, RRAS funciona. Si no, revisar:
 
 ## Problemas frecuentes
 
-| Síntoma | Causa probable | Solución |
-|---------|----------------|----------|
-| Cliente no recibe IP | Red interna incorrecta | Verificar adaptador en VirtualBox |
-| Cliente recibe APIPA 169.254 | No llega al DHCP | Verificar red interna y que el DC tenga IP en esa subred |
-| No encuentra dominio al unir | DNS del cliente no apunta al DC | Verificar DNS por DHCP o fijar manual |
-| nslookup falla | DNS no instalado / zona mal | Revisar rol DNS y servicio |
-| Ping Norte → APP01 falla | RRAS no habilitado o gateway mal | Revisar RRAS y gateways |
-| Ping Norte → APP01 responde pero web no abre | Firewall de APP01 bloquea 80 | Habilitar HTTP en firewall de APP01 |
-| No corre el script AD | No es DC / sin módulo | Promover primero; `Import-Module ActiveDirectory` |
-| Password User#Lab rechazada | Política de complejidad | Tiene mayúscula, minúscula, símbolo y longitud 8. Debería pasar. |
+| Síntoma                                      | Causa probable                   | Solución                                                         |
+| -------------------------------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| Cliente no recibe IP                         | Red interna incorrecta           | Verificar adaptador en VirtualBox                                |
+| Cliente recibe APIPA 169.254                 | No llega al DHCP                 | Verificar red interna y que el DC tenga IP en esa subred         |
+| No encuentra dominio al unir                 | DNS del cliente no apunta al DC  | Verificar DNS por DHCP o fijar manual                            |
+| nslookup falla                               | DNS no instalado / zona mal      | Revisar rol DNS y servicio                                       |
+| Ping Norte → APP01 falla                     | RRAS no habilitado o gateway mal | Revisar RRAS y gateways                                          |
+| Ping Norte → APP01 responde pero web no abre | Firewall de APP01 bloquea 80     | Habilitar HTTP en firewall de APP01                              |
+| No corre el script AD                        | No es DC / sin módulo            | Promover primero; `Import-Module ActiveDirectory`                |
+| Password User#Lab rechazada                  | Política de complejidad          | Tiene mayúscula, minúscula, símbolo y longitud 8. Debería pasar. |
 
 ---
 
 ## Orden de trabajo en grupo (reparto sugerido)
 
-| Integrante | Tarea |
-|------------|-------|
-| 1 | Promover AD + capturas en DC01 |
-| 2 | DNS + 4 scopes DHCP + capturas |
-| 3 | RRAS LAN routing + AD Sites + capturas |
-| 4 | Correr scripts UO/users + capturas ADUC |
-| 5 | Unir APP01 + 4 clientes + pruebas ipconfig/login/ping routing |
+| Integrante | Tarea                                                         |
+| ---------- | ------------------------------------------------------------- |
+| 1          | Promover AD + capturas en DC01                                |
+| 2          | DNS + 4 scopes DHCP + capturas                                |
+| 3          | RRAS LAN routing + AD Sites + capturas                        |
+| 4          | Correr scripts UO/users + capturas ADUC                       |
+| 5          | Unir APP01 + 4 clientes + pruebas ipconfig/login/ping routing |
 
-Al terminar, avisen **listo dia 2** y seguimos con **15 GPO** y **SERVER2**.
+Al terminar, avisan **listo dia 2** y seguimos con **15 GPO** y **SERVER2**.
+
+---
+
+## Nota crítica: orden de adaptadores en VirtualBox vs Windows
+
+> **Problema real encontrado durante el laboratorio.**
+
+Cuando se agregan 4 NICs en VirtualBox, Windows **no las numera en el mismo orden** que VirtualBox. El adaptador "Ethernet" en Windows puede corresponder al "Adapter 2" de VirtualBox, y "Ethernet 2" al "Adapter 1".
+
+**Síntoma:** las IPs estáticas quedan asignadas a adaptadores conectados a la red interna equivocada. Resultado: sin ping entre servidores, DHCP no entrega IPs, y todo se rompe sin error aparente.
+
+**Solución: emparejar por MAC address**
+
+1. En VirtualBox, abrir Settings de la VM → Network → cada Adapter → Advanced → anotar el **MAC address** de cada uno
+2. En Windows, abrir CMD y ejecutar `ipconfig /all` para ver la **dirección física** de cada adaptador
+3. Renombrar los adaptadores en `ncpa.cpl` según la red interna a la que corresponden:
+   - El que coincide con Adapter 1 (Central) → `NIC-Central`
+   - El que coincide con Adapter 2 (Norte) → `NIC-Norte`
+   - El que coincide con Adapter 3 (Este) → `NIC-Este`
+   - El que coincide con Adapter 4 (Sur) → `NIC-Sur`
+4. Asignar las IPs estáticas a los adaptadores **renombrados**, no a ciegas
+5. Verificar con `ping` antes de avanzar con cualquier otra configuración
+
+**Orden registrado en este laboratorio (SRV-DC01):**
+
+| Windows (antes)   | VirtualBox Adapter | Red interna         | IP asignada   |
+| ----------------- | ------------------ | ------------------- | ------------- |
+| Ethernet 2        | Adapter 1          | intnet-mabe-central | 192.168.10.10 |
+| Ethernet          | Adapter 2          | intnet-mabe-norte   | 192.168.20.10 |
+| (verificar 3 y 4) | Adapter 3 / 4      | este / sur          | .30 / .40     |
+
+# adicional
+
+mi windows server (los 2) y las maquinas clientes estan en español, dame las configuraciones en español tambien tenlo en cuenta para cuando redactes el informe 

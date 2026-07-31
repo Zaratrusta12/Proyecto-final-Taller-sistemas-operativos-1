@@ -46,36 +46,45 @@
 
 | VM | Hostname | Red interna | IP esperada | Gateway | DNS |
 |----|----------|-------------|-------------|---------|-----|
-| PC-REC01 | Central | intnet-mabe-central | `192.168.10.100-200` | `192.168.10.10` | `192.168.10.10` |
-| PC-NORTE01 | Norte | intnet-mabe-norte | `192.168.20.100-200` | `192.168.20.10` | `192.168.20.10` |
-| PC-ESTE01 | Este | intnet-mabe-este | `192.168.30.100-200` | `192.168.30.10` | `192.168.30.10` |
-| PC-SUR01 | Sur | intnet-mabe-sur | `192.168.40.100-200` | `192.168.40.10` | `192.168.40.10` |
+| PC-REC01 | Central | intnet-mabe-central | `192.168.10.51-200` | `192.168.10.10` | `192.168.10.10` |
+| PC-NORTE01 | Norte | intnet-mabe-norte | `192.168.20.51-200` | `192.168.20.10` | `192.168.20.10` |
+| PC-ESTE01 | Este | intnet-mabe-este | `192.168.30.51-200` | `192.168.30.10` | `192.168.30.10` |
+| PC-SUR01 | Sur | intnet-mabe-sur | `192.168.40.51-200` | `192.168.40.10` | `192.168.40.10` |
 
 ## Scopes DHCP (4 total, con exclusión cada uno)
 
-| Scope | Subred | Rango | Exclusión | Gateway | DNS | Domain |
-|-------|--------|-------|-----------|---------|-----|--------|
-| LAN-Central | `192.168.10.0` | `.100-.200` | `.1-.50` | `192.168.10.10` | `192.168.10.10` | `mabe.tso1` |
-| LAN-Norte | `192.168.20.0` | `.100-.200` | `.1-.50` | `192.168.20.10` | `192.168.20.10` | `mabe.tso1` |
-| LAN-Este | `192.168.30.0` | `.100-.200` | `.1-.50` | `192.168.30.10` | `192.168.30.10` | `mabe.tso1` |
-| LAN-Sur | `192.168.40.0` | `.100-.200` | `.1-.50` | `192.168.40.10` | `192.168.40.10` | `mabe.tso1` |
+| Scope | Subred | Rango total | Exclusión | Entregable | Gateway | DNS | Domain |
+|-------|--------|-------------|-----------|------------|---------|-----|--------|
+| LAN-Central | `192.168.10.0` | `.1-.200` | `.1-.50` | `.51-.200` | `192.168.10.10` | `192.168.10.10` | `mabe.tso1` |
+| LAN-Norte | `192.168.20.0` | `.1-.200` | `.1-.50` | `.51-.200` | `192.168.20.10` | `192.168.20.10` | `mabe.tso1` |
+| LAN-Este | `192.168.30.0` | `.1-.200` | `.1-.50` | `.51-.200` | `192.168.30.10` | `192.168.30.10` | `mabe.tso1` |
+| LAN-Sur | `192.168.40.0` | `.1-.200` | `.1-.50` | `.51-.200` | `192.168.40.10` | `192.168.40.10` | `mabe.tso1` |
 
 > Cada scope entrega como gateway y DNS la IP del DC en esa subred.
 
-## Impresoras lógicas (documentadas)
+## Impresoras lógicas (documentación referencial)
 
 | Nombre | IP referencial | UO |
 |--------|----------------|-----|
-| IMP-Recepcion-Central | `192.168.10.30` | UO_SC_Central |
-| IMP-Laboratorio-Central | `192.168.10.31` | UO_SC_Central |
+| IMP-Central | `192.168.10.30` | UO_SC_Central |
 | IMP-Norte | `192.168.20.30` | UO_SC_Norte |
 | IMP-Este | `192.168.30.30` | UO_SC_Este |
 | IMP-Sur | `192.168.40.30` | UO_SC_Sur |
 
+> Estas IPs son referenciales para la documentación del informe. Lo implementado en el Día 3 usa colas locales en APP01 con driver genérico IBM, sin puerto TCP/IP físico.
+
+## Nota crítica: orden de NICs en VirtualBox vs Windows
+
+> **Problema real encontrado en el laboratorio.**
+
+Cuando se agregan 4 NICs en VirtualBox, Windows **no las numera en el mismo orden** que VirtualBox. El adaptador "Ethernet" en Windows puede corresponder al "Adapter 2" de VirtualBox.
+
+**Solución: emparejar por MAC address** (ver detalle en `checklist_dia2_ad_dns_dhcp.md` sección "Nota crítica").
+
 ## Reglas rápidas
 
-1. Servidores: IP estática fuera del pool (dentro de la exclusión `.1-.50`).
-2. Clientes: DHCP.
+1. Servidores: IP estática fuera del pool entregable (dentro de la exclusión `.1-.50`).
+2. Clientes: DHCP (reciben IP del rango entregable `.51-.200`).
 3. DNS de miembros del dominio: siempre la IP del DC en su subred (Norte usa `.20.10`, Este `.30.10`, etc.).
 4. APP01: gateway `192.168.10.10` (DC central) para que el DC enrute respuestas hacia las sucursales.
 5. Antes de unir al dominio: verificar `ping <IP del DC en la subred>` y `nslookup mabe.tso1`.

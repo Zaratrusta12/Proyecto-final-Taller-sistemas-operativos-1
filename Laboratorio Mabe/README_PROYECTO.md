@@ -83,10 +83,11 @@ Laboratorio Mabe/
 | Fase | Estado | Notas |
 |------|--------|-------|
 | 0 Organización | Hecho | Carpetas + docs base |
-| 1 Diseño | Hecho (ajustar detalle) | Topología draw.io revisada |
-| 2 VMs base | Hecho | 3 VMs, ping DC↔APP OK |
-| 3 SERVER1 | En curso | AD/DNS/DHCP/GPO |
-| 4 SERVER2 | Pendiente | IIS/Archivos/Impresión/Correo |
+| 1 Diseño | Hecho | Topología draw.io con 4 sucursales |
+| 2 VMs base | Hecho | 6 VMs, ping DC↔APP OK, NICs emparejados por MAC |
+| 3 SERVER1 | Hecho | AD/DNS/DHCP (4 scopes)/RRAS/Sites/4 UO/12 grupos/60 users |
+| 4 SERVER2 | Hecho | IIS (5 páginas)/Archivos+Cuotas/Impresión (4)/RDP |
+| 4b Correo | Pendiente | hMailServer omitido en Día 3, programar para Día 4 |
 | 5 Seguridad + Hyper-V + Backup | Pendiente | |
 | 6 Pruebas | Pendiente | |
 | 7 Informe | Pendiente | ≥25 páginas APA 7 |

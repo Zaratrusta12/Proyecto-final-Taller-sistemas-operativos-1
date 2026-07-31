@@ -6,20 +6,6 @@ INDICACIONES PARA REDACTAR EL INFORME
 
 - siempre aclarar con su nombre de que maquina, red, servicio se esta hablando Ej: la primer maquina (SRV-DC01)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- dentro de informe utilizar siempre lenguaje tecnico y especifico a la hora de describir los pasos de instalacion/configuracion que se realizen
 
 

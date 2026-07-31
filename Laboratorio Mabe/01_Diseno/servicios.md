@@ -54,29 +54,35 @@
 Ruta en servidor: `C:\inetpub\wwwroot\mabe\`  
 URL: `http://srv-app01.mabe.tso1` o `http://192.168.10.20`
 
-## Carpetas compartidas y permisos (esquema)
+## Carpetas compartidas y permisos (esquema por sucursal)
 
 ```
-D:\DatosMabe\
-├── Recepcion\        → G_Rec_*  Modify | Administrators Full
-├── Laboratorio\      → G_Lab_*  Modify | Administrators Full
-├── Administracion\   → G_Adm_*  Modify | Administrators Full
-└── Publico\          → Usuarios autenticados Read
+D:\DatosMabe\   (o C:\DatosMabe\ si no hay segundo disco)
+├── Central\        → G_Central_Usuarios + G_Central_Supervisores (Modify) | Administradores (Full)
+├── Norte\          → G_Norte_Usuarios + G_Norte_Supervisores (Modify) | Administradores (Full)
+├── Este\           → G_Este_Usuarios + G_Este_Supervisores (Modify) | Administradores (Full)
+├── Sur\            → G_Sur_Usuarios + G_Sur_Supervisores (Modify) | Administradores (Full)
+└── Publico\        → Usuarios autenticados (Read)
 ```
 
-Cuotas FSRM:
-- Recepcion: 2 GB
-- Laboratorio: 5 GB
-- Administracion: 3 GB
+> Implementado en el Día 3: 5 carpetas compartidas, permisos NTFS por grupo de sucursal, herencia deshabilitada, "Usuarios" local eliminado de cada share. Denegación cruzada verificada (ej. usuario de Norte no entra a Central).
 
-## Impresoras (1 por UO/sucursal)
+Cuota de disco (implementado en el Día 3):
+- Cuota global habilitada en volumen C: de SRV-APP01
+- Límite: 2 GB, nivel de advertencia 1.8 GB
+- Verificado desde cliente: límite visible
 
-| Nombre cola | UO / GPO | Notas |
-|-------------|----------|-------|
-| IMP-Central | UO_SC_Central | Driver genérico / Microsoft Print to PDF |
-| IMP-Norte | UO_SC_Norte | Idem |
-| IMP-Este | UO_SC_Este | Idem |
-| IMP-Sur | UO_SC_Sur | Idem |
+## Impresoras (1 por sucursal, implementado en Día 3)
+
+| Nombre cola | Sucursal / GPO | Driver | Notas |
+|-------------|----------------|--------|-------|
+| IMP-Central | UO_SC_Central | Genérico IBM | Cola local en APP01 |
+| IMP-Norte | UO_SC_Norte | Genérico IBM | Cola local en APP01 |
+| IMP-Este | UO_SC_Este | Genérico IBM | Cola local en APP01 |
+| IMP-Sur | UO_SC_Sur | Genérico IBM | Cola local en APP01 |
+
+> Implementado con 4 impresoras genéricas IBM en APP01, compartidas y desplegadas por GPO.
+> Las IPs de impresoras en `direccionamiento_ip.md` son referenciales para la documentación; lo implementado usa colas locales sin puerto TCP/IP físico.
 
 ## Correo
 
@@ -89,9 +95,13 @@ Cuotas FSRM:
 
 ## Seguridad (resumen)
 
-- GPO de contraseñas y bloqueo de cuentas
-- GPO de restricción USB, bloqueo de pantalla, mapeo de unidades
+- GPO de contraseñas y bloqueo de cuentas (dominio)
+- GPO de restricción USB, bloqueo de pantalla, mapeo de unidades (dominio)
+- GPO de restricción de Panel de control y CMD (UO_SC_Central)
+- GPO de despliegue de impresoras por sucursal (UO)
 - Firewall de Windows con reglas por rol
-- RDP solo para Domain Admins / grupo admin
+- RDP solo para administradores (DC + APP01)
 - RRAS: routing inter-VLAN, sin exposición externa
+- Archivos: permisos NTFS por grupo de sucursal, denegación cruzada
+- Cuotas de disco habilitadas (2 GB)
 - Datos de pacientes: **siempre ficticios** en demos y capturas
